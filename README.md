@@ -4,6 +4,17 @@ Scripts for managing git worktrees for IREE and LLVM projects.
 
 Based on https://github.com/krzysz00/amd-scripts.
 
+## Prerequisites
+
+**Required for scripts:**
+
+- `zsh` — scripts are written in zsh
+- `fzf` — for interactive worktree browsing (`wt br`)
+- `direnv` — for automatic environment activation
+- `parallel` — for parallel submodule initialization
+
+The included CMake presets assume `clang-20`, `ninja`, `ccache`, and `mold` to be installed, but you can modify them based on your environment.
+
 ## Installation
 
 Source the setup script in your shell configuration (`.bashrc`, `.zshrc`, or `.bash_aliases`):
@@ -44,6 +55,17 @@ wt llvm br
 wt root
 wt iree root
 wt llvm root
+```
+
+Sample `wt br` output (uses fzf for interactive selection):
+
+```
+  ~/iree/gfx1250/src             gfx1250             6d742a14  2 weeks ago  [GlobalOpt] Fix rank-reduced permutation in Sin··
+  ~/iree/ci-macos-integrate/src  ci-macos-integrate  e815f3c4  8 days ago   [CI] Do not schedule-only jobs on integrates
+  ~/iree/main/src                main                29a992ec  2 days ago   [Dispatch Creation] Move two flags to pipeline ··
+▌ ~/iree/test12/src              test12              29a992ec  2 days ago   [Dispatch Creation] Move two flags to pipeline ··
+  4/4 ─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+>
 ```
 
 ### Script Commands
