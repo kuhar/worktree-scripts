@@ -1,0 +1,128 @@
+{
+  "version": 6,
+  "cmakeMinimumRequired": {
+    "major": 3,
+    "minor": 25,
+    "patch": 0
+  },
+  "configurePresets": [
+    {
+      "name": "default",
+      "hidden": false,
+      "generator": "Ninja",
+      "binaryDir": "${sourceDir}/../build",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "RelWithDebInfo",
+        "CMAKE_CXX_COMPILER": "clang++-20",
+        "CMAKE_C_COMPILER": "clang-20",
+        "CMAKE_CXX_FLAGS": "-Wno-unsafe-buffer-usage -fno-omit-frame-pointer -Wno-error=switch-default -ffile-prefix-map=${sourceDir}=${sourceDirName} -ffile-prefix-map=${sourceParentDir}/build=build",
+        "CMAKE_C_FLAGS": "-Wno-unsafe-buffer-usage -fno-omit-frame-pointer -Wno-error=switch-default -ffile-prefix-map=${sourceDir}=${sourceDirName} -ffile-prefix-map=${sourceParentDir}/build=build",
+        "CMAKE_CXX_COMPILER_LAUNCHER": "ccache",
+        "CMAKE_C_COMPILER_LAUNCHER": "ccache",
+        "CMAKE_EXPORT_COMPILE_COMMANDS": "ON",
+        "CMAKE_INSTALL_PREFIX": "run",
+        "IREE_BUILD_PYTHON_BINDINGS": "ON",
+        "IREE_HAL_DRIVER_HIP": "ON",
+        "IREE_HIP_TEST_TARGET_CHIP": "gfx1201",
+        "IREE_TARGET_BACKEND_ROCM": "ON",
+        "IREE_TARGET_BACKEND_WEBGPU_SPIRV": "OFF",
+        "IREE_ENABLE_ASSERTIONS": "ON",
+        "IREE_BUILD_TRACY": "ON",
+        "IREE_ENABLE_COMPILER_TRACING": "OFF",
+        "IREE_ENABLE_RUNTIME_TRACING": "OFF",
+        "IREE_USE_LINKER": "mold",
+        "IREE_ENABLE_SPLIT_DWARF": "ON",
+        "IREE_ENABLE_THIN_ARCHIVES": "ON",
+        "IREE_ENABLE_ASAN": "OFF",
+        "IREE_ENABLE_UBSAN": "OFF",
+        "LLVM_INSTALL_UTILS": "ON"
+      }
+    },
+    {
+      "name": "relass",
+      "inherits": "default",
+      "displayName": "Release with Debug Info (Jakub)"
+    },
+    {
+      "name": "debug",
+      "inherits": "default",
+      "displayName": "Debug (Jakub)",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Debug"
+      }
+    },
+    {
+      "name": "relass-gfx1250",
+      "inherits": "relass",
+      "displayName": "Release with Debug Info - gfx1250 (Jakub)",
+      "cacheVariables": {
+        "IREE_HIP_TEST_TARGET_CHIP": "gfx1250"
+      }
+    }
+  ],
+  "buildPresets": [
+    {
+      "name": "default",
+      "displayName": "Default build (everything and test deps)",
+      "configurePreset": "default",
+      "targets": ["all", "iree-test-deps"]
+    },
+    {
+      "name": "compiler",
+      "displayName": "Rebuild compiler",
+      "inherits": "default",
+      "targets": ["iree-opt", "iree-compiler", "opt", "llc"]
+    }
+  ],
+
+  "testPresets": [
+    {
+      "name": "default",
+      "displayName": "Run all tests",
+      "configurePreset": "default",
+      "output": {
+        "outputOnFailure": true
+      },
+      "execution": {
+        "jobs": 16
+      },
+      "filter": {
+        "exclude": {
+          "name": "cuda|metal|hip/cts"
+        }
+      }
+    },
+
+    {
+      "name": "no-e2e",
+      "displayName": "Exclude e2e tests",
+      "inherits": "default",
+      "filter": {
+        "exclude": {
+          "name": "e2e|hip/cts"
+        }
+      }
+    }
+  ],
+
+  "workflowPresets": [
+    {
+      "name": "build",
+      "displayName": "Build IREE",
+      "steps": [
+        { "type": "configure", "name": "default" },
+        { "type": "build", "name": "default" }
+      ]
+    },
+    {
+      "name": "test",
+      "displayName": "Build and test IREE",
+      "steps": [
+        { "type": "configure", "name": "default" },
+        { "type": "build", "name": "default" },
+        { "type": "test", "name": "default" }
+      ]
+    }
+  ]
+}
+

@@ -1,0 +1,84 @@
+{
+  "version": 6,
+  "cmakeMinimumRequired": {
+    "major": 3,
+    "minor": 25,
+    "patch": 0
+  },
+  "configurePresets": [
+    {
+      "name": "default",
+      "hidden": false,
+      "generator": "Ninja",
+      "binaryDir": "${sourceDir}/../../build",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "RelWithDebInfo",
+        "CMAKE_CXX_COMPILER": "clang++-20",
+        "CMAKE_C_COMPILER": "clang-20",
+        "CMAKE_CXX_FLAGS": "-Wno-unsafe-buffer-usage -fno-omit-frame-pointer",
+        "CMAKE_C_FLAGS": "-Wno-unsafe-buffer-usage -fno-omit-frame-pointer",
+        "CMAKE_CXX_COMPILER_LAUNCHER": "ccache",
+        "CMAKE_C_COMPILER_LAUNCHER": "ccache",
+        "CMAKE_EXPORT_COMPILE_COMMANDS": "ON",
+        "CMAKE_INSTALL_PREFIX": "run",
+        "LLVM_ENABLE_PROJECTS": "mlir;clang;clang-tools-extra;flang;lld;lldb",
+        "CLANG_ENABLE_CIR": "ON",
+        "LLVM_ENABLE_ASSERTIONS": "ON",
+        "MLIR_INCLUDE_INTEGRATION_TESTS": "ON",
+        "LLVM_INCLUDE_SPIRV_TOOLS_TESTS": "ON",
+        "MLIR_ENABLE_VULKAN_RUNNER": "ON",
+        "MLIR_ENABLE_SPIRV_CPU_RUNNER": "ON",
+        "LLVM_BUILD_EXAMPLES": "ON",
+        "MLIR_ENABLE_BINDINGS_PYTHON": "ON",
+        "LLVM_TARGETS_TO_BUILD": "X86;AMDGPU",
+        "LLVM_INSTALL_UTILS": "ON",
+        "LLVM_USE_SPLIT_DWARF": "ON",
+        "LLVM_USE_LINKER": "mold"
+      }
+    },
+    {
+      "name": "relass",
+      "inherits": "default",
+      "displayName": "Release with Debug Info (Jakub)"
+    },
+    {
+      "name": "debug",
+      "inherits": "default",
+      "displayName": "Debug (Jakub)",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Debug"
+      }
+    }
+  ],
+  "buildPresets": [
+    {
+      "name": "default",
+      "displayName": "Default build",
+      "configurePreset": "default",
+      "targets": ["check-mlir"]
+    },
+    {
+      "name": "mlir",
+      "displayName": "Build MLIR tools",
+      "inherits": "default",
+      "targets": ["mlir-opt", "mlir-translate", "mlir-lsp-server"]
+    },
+    {
+      "name": "clang",
+      "displayName": "Build Clang",
+      "inherits": "default",
+      "targets": ["clang", "clangd"]
+    }
+  ],
+
+  "workflowPresets": [
+    {
+      "name": "build",
+      "displayName": "Build LLVM",
+      "steps": [
+        { "type": "configure", "name": "default" },
+        { "type": "build", "name": "default" }
+      ]
+    }
+  ]
+}
