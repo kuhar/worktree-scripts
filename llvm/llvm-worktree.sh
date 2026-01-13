@@ -57,7 +57,7 @@ cmd_setup() {
     echo "PATH_add \"$build_dir/bin\"" >> .envrc
 
     ln -sf "$build_dir/compile_commands.json" "$root_dir/compile_commands.json"
-    ln -sf "$build_dir/tablegen_compile_commands.json" "$root_dir/tablegen_compile_commands.json"
+    ln -sf "$build_dir/tablegen_compile_commands.yaml" "$root_dir/tablegen_compile_commands.yaml"
 
     direnv allow "$root_dir"
     echo "Set up LLVM build environment in $root_dir"
@@ -166,7 +166,7 @@ cmd_remove() {
     echo "Removing build and environment in ${worktree_env} ..."
     rm -rf -- "${worktree_env}/build" "${worktree_env}/.direnv" "${worktree_env}/.envrc" \
               "${worktree_env}/.cache" "${worktree_env}/venv" \
-              "${worktree_env}/compile_commands.json" "${worktree_env}/tablegen_compile_commands.json" || true
+              "${worktree_env}/compile_commands.json" "${worktree_env}/tablegen_compile_commands.yaml" || true
     rmdir "${worktree_env}" || (echo "There's still something in the worktree" && ls -la "${worktree_env}")
     echo "Removed worktree $branch_or_path at $worktree_env"
 }
