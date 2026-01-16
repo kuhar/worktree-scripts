@@ -42,9 +42,14 @@ cmd_setup() {
     fi
 
     pushd "$root_dir"
-    python3.12 -m venv venv
+
+    typeset -F SECONDS
+    local start_time=$SECONDS
+    uv venv --python 3.12 venv
     source venv/bin/activate
-    pip install -r "$root_dir/src/runtime/bindings/python/iree/runtime/build_requirements.txt"
+    uv pip install -r "$root_dir/src/runtime/bindings/python/iree/runtime/build_requirements.txt"
+    local elapsed=$((SECONDS - start_time))
+    printf "Venv setup and package installation took %.3fs\n" "$elapsed"
 
     local build_dir="$root_dir/build"
     mkdir -p "$build_dir"
@@ -59,7 +64,7 @@ cmd_setup() {
     eval "$(direnv export zsh)"
 
     ln -sf "$build_dir/compile_commands.json" "$root_dir/compile_commands.json"
-    ln -sf "$build_dir/tablegen_compile_commands.yaml" "$root_dir/tablegen_compile_commands.yaml"
+    ln -sf "$build_dir/tablegen_compile_commands.yml" "$root_dir/tablegen_compile_commands.yml"
 
     direnv allow "$root_dir"
     echo "Set up IREE build environment in $root_dir"
@@ -102,7 +107,7 @@ cmd_create() {
         git branch "$branch"
     fi
 
-    printf "Creating worktree ...\n  - Branch: %s\n -- Path: %s\n" "$branch" "$worktree_root"
+    printf "Creating worktree...\n  - Branch: %s\n -- Path: %s\n" "$branch" "$worktree_root"
 
     mkdir -p "$worktree_root"
     git worktree add "$worktree_src_root" "$branch"
@@ -176,10 +181,10 @@ cmd_remove() {
     # Now that we've cleaned out the submodules, no need for force
     git worktree remove "$worktree_path"
 
-    echo "Removing build and environment in ${worktree_env} ..."
+    echo "Removing build and environment in ${worktree_env}..."
     rm -rf -- "${worktree_env}/build" "${worktree_env}/.direnv" "${worktree_env}/.envrc" \
               "${worktree_env}/.cache" "${worktree_env}/venv" \
-              "${worktree_env}/compile_commands.json" "${worktree_env}/tablegen_compile_commands.yaml" || true
+              "${worktree_env}/compile_commands.json" "${worktree_env}/tablegen_compile_commands.yml" || true
     rmdir "${worktree_env}" || (echo "There's still something in the worktree" && ls -la "${worktree_env}")
     echo "Removed worktree $branch_or_path at $worktree_env"
 }
