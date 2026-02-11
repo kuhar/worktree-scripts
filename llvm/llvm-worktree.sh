@@ -3,8 +3,9 @@
 set -euo pipefail
 
 SCRIPT_DIR="${0:A:h}"
+REPO_DIR="llvm-project"
 LLVMS="$HOME/llvm"
-MAIN_LLVM="$LLVMS/main/src"
+MAIN_LLVM="$LLVMS/main/$REPO_DIR"
 
 check_main_llvm() {
     if [[ ! -d $MAIN_LLVM ]]; then
@@ -36,8 +37,8 @@ cmd_setup() {
     fi
 
     local root_dir="$1"
-    if [[ ! -d "$root_dir/src/llvm" ]]; then
-        echo "Error: expected $root_dir/src to be an LLVM checkout (no llvm/ subdirectory found)"
+    if [[ ! -d "$root_dir/$REPO_DIR/llvm" ]]; then
+        echo "Error: expected $root_dir/$REPO_DIR to be an LLVM checkout (no llvm/ subdirectory found)"
         exit 1
     fi
 
@@ -47,7 +48,7 @@ cmd_setup() {
     local start_time=$SECONDS
     uv venv --python 3.12 venv
     source venv/bin/activate
-    uv pip install -r "$root_dir/src/mlir/python/requirements.txt"
+    uv pip install -r "$root_dir/$REPO_DIR/mlir/python/requirements.txt"
     local elapsed=$((SECONDS - start_time))
     printf "Venv setup and package installation took %.3fs\n" "$elapsed"
 
@@ -76,7 +77,7 @@ cmd_create() {
         echo "Usage: $0 create <branch name> [tree name]"
         echo ""
         echo "Create a worktree based off of [branch name], creating it if"
-        echo "it doesn't exist. The worktree is created at ~/llvm/[tree name]/src"
+        echo "it doesn't exist. The worktree is created at ~/llvm/[tree name]/$REPO_DIR"
         echo "where [tree name] defaults to <branch name> with the stacking PR bits"
         echo "removed."
         exit 1
@@ -91,7 +92,7 @@ cmd_create() {
     fi
 
     local worktree_root="$LLVMS/$worktree_name"
-    local worktree_src_root="$worktree_root/src"
+    local worktree_src_root="$worktree_root/$REPO_DIR"
     if [[ -d "$worktree_root" ]]; then
         echo "Will not overwrite existing worktree: $worktree_root"
         exit 1
@@ -115,6 +116,11 @@ cmd_create() {
 
     echo "Setting up environment ..."
     cmd_setup "$worktree_root"
+
+    local main_root="$LLVMS/main"
+    for item in marks.md .claude .cursor; do
+        [[ -e "$main_root/$item" ]] && cp -r "$main_root/$item" "$worktree_root/$item"
+    done
 
     echo "Created worktree ${worktree_name} at ${worktree_root}"
 }
@@ -144,11 +150,11 @@ cmd_remove() {
         worktree_path=$(git worktree list --porcelain | grep -B2 "^branch refs/heads/$branch_or_path" | head -1 | cut -d ' ' -f 2)
     elif [[ -d "$branch_or_path" ]] && [[ -f "$branch_or_path/.git" ]]; then
         worktree_path="${branch_or_path:a}"
-    elif [[ -d "$branch_or_path/src" ]] && [[ -f "$branch_or_path/src/.git" ]]; then
-        worktree_path="$branch_or_path/src"
+    elif [[ -d "$branch_or_path/$REPO_DIR" ]] && [[ -f "$branch_or_path/$REPO_DIR/.git" ]]; then
+        worktree_path="$branch_or_path/$REPO_DIR"
         worktree_path="${worktree_path:a}"
-    elif [[ -f "$LLVMS/$branch_or_path/src/.git" ]]; then
-        worktree_path="$LLVMS/$branch_or_path/src"
+    elif [[ -f "$LLVMS/$branch_or_path/$REPO_DIR/.git" ]]; then
+        worktree_path="$LLVMS/$branch_or_path/$REPO_DIR"
     else
         echo "Could not find worktree for branch/path: $branch_or_path"
         exit 1
@@ -170,7 +176,8 @@ cmd_remove() {
     echo "Removing build and environment in ${worktree_env}..."
     rm -rf -- "${worktree_env}/build" "${worktree_env}/.direnv" "${worktree_env}/.envrc" \
               "${worktree_env}/.cache" "${worktree_env}/venv" \
-              "${worktree_env}/compile_commands.json" "${worktree_env}/tablegen_compile_commands.yml" || true
+              "${worktree_env}/compile_commands.json" "${worktree_env}/tablegen_compile_commands.yml" \
+              "${worktree_env}/marks.md" "${worktree_env}/.claude" "${worktree_env}/.cursor" || true
     rmdir "${worktree_env}" || (echo "There's still something in the worktree" && ls -la "${worktree_env}")
     echo "Removed worktree $branch_or_path at $worktree_env"
 }

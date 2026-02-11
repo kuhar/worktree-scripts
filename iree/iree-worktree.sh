@@ -3,8 +3,9 @@
 set -euo pipefail
 
 SCRIPT_DIR="${0:A:h}"
+REPO_DIR="iree"
 IREES="$HOME/iree"
-MAIN_IREE="$IREES/main/src"
+MAIN_IREE="$IREES/main/$REPO_DIR"
 
 check_main_iree() {
     if [[ ! -d $MAIN_IREE ]]; then
@@ -36,7 +37,7 @@ cmd_setup() {
     fi
 
     local root_dir="$1"
-    if [[ ! -d "$root_dir/src/compiler" ]]; then
+    if [[ ! -d "$root_dir/$REPO_DIR/compiler" ]]; then
         echo "Error: expected $root_dir to heuristically be an IREE checkout"
         exit 1
     fi
@@ -47,7 +48,7 @@ cmd_setup() {
     local start_time=$SECONDS
     uv venv --python 3.12 venv
     source venv/bin/activate
-    uv pip install -r "$root_dir/src/runtime/bindings/python/iree/runtime/build_requirements.txt"
+    uv pip install -r "$root_dir/$REPO_DIR/runtime/bindings/python/iree/runtime/build_requirements.txt"
     local elapsed=$((SECONDS - start_time))
     printf "Venv setup and package installation took %.3fs\n" "$elapsed"
 
@@ -79,7 +80,7 @@ cmd_create() {
         echo "Usage: $0 create <branch name> [tree name]"
         echo ""
         echo "Create a worktree based off of [branch name], creating it if"
-        echo "it doesn't exist. The worktree is created at ~/iree/[tree name]/src"
+        echo "it doesn't exist. The worktree is created at ~/iree/[tree name]/$REPO_DIR"
         echo "where [tree name] defaults to <branch name> with the stacking PR bits"
         echo "removed. It then sets up submodules to copy off of the main checkout."
         exit 1
@@ -94,7 +95,7 @@ cmd_create() {
     fi
 
     local worktree_root="$IREES/$worktree_name"
-    local worktree_src_root="$worktree_root/src"
+    local worktree_src_root="$worktree_root/$REPO_DIR"
     if [[ -d "$worktree_root" ]]; then
         echo "Will not overwrite existing worktree: $worktree_root"
         exit 1
@@ -125,6 +126,11 @@ cmd_create() {
     echo "Creating virtual environment ..."
     cmd_setup "$worktree_root"
 
+    local main_root="$IREES/main"
+    for item in marks.md .claude .cursor; do
+        [[ -e "$main_root/$item" ]] && cp -r "$main_root/$item" "$worktree_root/$item"
+    done
+
     echo "Created worktree ${worktree_name} at ${worktree_root}"
 }
 
@@ -153,11 +159,11 @@ cmd_remove() {
         worktree_path=$(git worktree list --porcelain | grep -B2 "^branch refs/heads/$branch_or_path" | head -1 | cut -d ' ' -f 2)
     elif [[ -d "$branch_or_path" ]] && [[ -f "$branch_or_path/.git" ]]; then
         worktree_path="${branch_or_path:a}"
-    elif [[ -d "$branch_or_path/src" ]] && [[ -f "$branch_or_path/src/.git" ]]; then
-        worktree_path="$branch_or_path/src"
+    elif [[ -d "$branch_or_path/$REPO_DIR" ]] && [[ -f "$branch_or_path/$REPO_DIR/.git" ]]; then
+        worktree_path="$branch_or_path/$REPO_DIR"
         worktree_path="${worktree_path:a}"
-    elif [[ -f "$IREES/$branch_or_path/src/.git" ]]; then
-        worktree_path="$IREES/$branch_or_path/src"
+    elif [[ -f "$IREES/$branch_or_path/$REPO_DIR/.git" ]]; then
+        worktree_path="$IREES/$branch_or_path/$REPO_DIR"
     else
         echo "Could not find worktree for branch/path: $branch_or_path"
         exit 1
@@ -184,7 +190,8 @@ cmd_remove() {
     echo "Removing build and environment in ${worktree_env}..."
     rm -rf -- "${worktree_env}/build" "${worktree_env}/.direnv" "${worktree_env}/.envrc" \
               "${worktree_env}/.cache" "${worktree_env}/venv" \
-              "${worktree_env}/compile_commands.json" "${worktree_env}/tablegen_compile_commands.yml" || true
+              "${worktree_env}/compile_commands.json" "${worktree_env}/tablegen_compile_commands.yml" \
+              "${worktree_env}/marks.md" "${worktree_env}/.claude" "${worktree_env}/.cursor" || true
     rmdir "${worktree_env}" || (echo "There's still something in the worktree" && ls -la "${worktree_env}")
     echo "Removed worktree $branch_or_path at $worktree_env"
 }
