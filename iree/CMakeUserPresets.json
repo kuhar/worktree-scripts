@@ -19,6 +19,7 @@
         "CMAKE_C_FLAGS": "-Wno-unsafe-buffer-usage -fno-omit-frame-pointer -Wno-error=switch-default -ffile-prefix-map=${sourceDir}=${sourceDirName} -ffile-prefix-map=${sourceParentDir}/build=build",
         "CMAKE_CXX_COMPILER_LAUNCHER": "ccache",
         "CMAKE_C_COMPILER_LAUNCHER": "ccache",
+        "LLVM_CCACHE_PARAMS": "CCACHE_CPP2=yes CCACHE_HASHDIR=no CCACHE_SLOPPINESS=include_file_ctime,include_file_mtime,pch_defines,time_macros",
         "CMAKE_EXPORT_COMPILE_COMMANDS": "ON",
         "CMAKE_INSTALL_PREFIX": "run",
         "IREE_BUILD_PYTHON_BINDINGS": "ON",

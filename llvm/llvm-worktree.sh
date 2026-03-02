@@ -56,8 +56,6 @@ cmd_setup() {
     mkdir -p "$build_dir"
 
     echo "export CCACHE_BASEDIR=\"$root_dir\"" > .envrc
-    echo "export CCACHE_NOHASHDIR=1" >> .envrc
-    echo "export CCACHE_SLOPPINESS=include_file_mtime,include_file_ctime" >> .envrc
     echo "source \"$root_dir/venv/bin/activate\"" >> .envrc
     echo "PATH_add \"$build_dir/bin\"" >> .envrc
 
