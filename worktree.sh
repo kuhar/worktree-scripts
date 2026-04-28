@@ -3,6 +3,7 @@
 set -euo pipefail
 
 SCRIPT_DIR="${0:A:h}"
+SCRIPT_NAME="${0:A}"
 
 # =============================================================================
 # Project Configuration
@@ -52,7 +53,7 @@ detect_project() {
 
 usage() {
     local proj_list="${(j:|:)${(k)PROJECTS[@]}}"
-    echo "Usage: $0 [${proj_list}] <command> [args...]"
+    echo "Usage: $SCRIPT_NAME [${proj_list}] <command> [args...]"
     echo ""
     echo "Dispatches to project-specific worktree scripts based on current directory."
     echo ""
@@ -64,6 +65,7 @@ usage() {
     echo "  create <branch> [name]  Create a new worktree"
     echo "  remove <branch|path>    Remove an existing worktree"
     echo "  setup <root>            Set up build environment for a worktree"
+    echo "  setup-review <pr> [name] Prepare a local PR review checkout"
     echo "  list                    List all worktrees"
     echo "  <other>                 Passed through to 'git worktree <other>'"
 }

@@ -3,6 +3,7 @@
 set -euo pipefail
 
 SCRIPT_DIR="${0:A:h}"
+SCRIPT_NAME="${0:A}"
 REPO_DIR="llvm-project"
 LLVMS="$HOME/llvm"
 MAIN_LLVM="$LLVMS/main/$REPO_DIR"
@@ -15,24 +16,101 @@ check_main_llvm() {
 }
 
 usage() {
-    echo "Usage: $0 <command> [args...]"
+    echo "Usage: $SCRIPT_NAME <command> [args...]"
     echo ""
     echo "Commands:"
     echo "  create <branch> [name]  Create a new worktree"
     echo "  remove <branch|path>    Remove an existing worktree"
     echo "  setup <root>            Set up build environment for a worktree"
+    echo "  setup-review <pr> [name] [--build] [--test]"
+    echo "                          Create and prepare a GitHub PR review checkout"
     echo "  list                    List worktrees with commit details"
     echo "  <other>                 Passed through to 'git worktree <other>'"
     echo ""
     echo "Examples:"
-    echo "  $0 create my-feature"
-    echo "  $0 remove my-feature"
-    echo "  $0 list"
+    echo "  $SCRIPT_NAME create my-feature"
+    echo "  $SCRIPT_NAME setup-review 194692 --build"
+    echo "  $SCRIPT_NAME remove my-feature"
+    echo "  $SCRIPT_NAME list"
+}
+
+slugify_review_component() {
+    printf '%s' "$1" | tr '[:upper:]' '[:lower:]' | sed -E 's/[^a-z0-9]+/-/g; s/^-+//; s/-+$//'
+}
+
+normalize_llvm_pr_ref() {
+    local pr_ref="$1"
+    if [[ "$pr_ref" =~ 'github\.com/llvm/llvm-project/pull/([0-9]+)' ]]; then
+        echo "$match[1]"
+    else
+        echo "$pr_ref"
+    fi
+}
+
+default_review_name() {
+    local author_slug
+    local branch_slug
+    author_slug=$(slugify_review_component "$1")
+    branch_slug=$(slugify_review_component "$2")
+    if [[ -n "$author_slug" && -n "$branch_slug" ]]; then
+        echo "review-${author_slug}-${branch_slug}"
+    else
+        echo "review-pr-$3"
+    fi
+}
+
+link_cmake_presets() {
+    [[ -a llvm/CMakeUserPresets.json ]] || ln -s "${SCRIPT_DIR}/CMakeUserPresets.json" llvm/
+}
+
+copy_main_worktree_state() {
+    local worktree_root="$1"
+    local main_root="$LLVMS/main"
+    for item in marks.md .claude .cursor; do
+        [[ -e "$main_root/$item" ]] && cp -r "$main_root/$item" "$worktree_root/$item"
+    done
+}
+
+setup_worktree_environment() {
+    local worktree_root="$1"
+    local worktree_src_root="$worktree_root/$REPO_DIR"
+
+    cd "$worktree_src_root"
+    link_cmake_presets
+
+    echo "Setting up environment ..."
+    cmd_setup "$worktree_root"
+    copy_main_worktree_state "$worktree_root"
+}
+
+configure_review_build() {
+    local worktree_root="$1"
+    local preset="${LLVM_REVIEW_CMAKE_PRESET:-default}"
+
+    cd "$worktree_root/$REPO_DIR/llvm"
+    source "$worktree_root/venv/bin/activate"
+    cmake --preset "$preset"
+}
+
+build_review_targets() {
+    local worktree_root="$1"
+
+    cd "$worktree_root/build"
+    source "$worktree_root/venv/bin/activate"
+    ninja mlir-opt mlir-translate
+}
+
+test_review_build() {
+    local worktree_root="$1"
+
+    cd "$worktree_root/build"
+    source "$worktree_root/venv/bin/activate"
+    ninja check-mlir
 }
 
 cmd_setup() {
     if [[ $# -lt 1 ]]; then
-        echo "Usage: $0 setup <root directory>"
+        echo "Usage: $SCRIPT_NAME setup <root directory>"
         exit 1
     fi
 
@@ -62,7 +140,7 @@ cmd_setup() {
     ln -sf "$build_dir/compile_commands.json" "$root_dir/compile_commands.json"
     ln -sf "$build_dir/tablegen_compile_commands.yml" "$root_dir/tablegen_compile_commands.yml"
 
-    direnv allow "$root_dir"
+    direnv allow "$root_dir" || echo "Warning: direnv allow failed; run 'direnv allow $root_dir' from a writable shell if needed."
     echo "Set up LLVM build environment in $root_dir"
 
     popd
@@ -72,7 +150,7 @@ cmd_create() {
     check_main_llvm
 
     if [[ $# -lt 1 ]]; then
-        echo "Usage: $0 create <branch name> [tree name]"
+        echo "Usage: $SCRIPT_NAME create <branch name> [tree name]"
         echo ""
         echo "Create a worktree based off of [branch name], creating it if"
         echo "it doesn't exist. The worktree is created at ~/llvm/[tree name]/$REPO_DIR"
@@ -108,19 +186,117 @@ cmd_create() {
     mkdir -p "$worktree_root"
     git worktree add "$worktree_src_root" "$branch"
 
-    cd "$worktree_src_root"
-
-    [[ -a CMakeUserPresets.json ]] || ln -s "${SCRIPT_DIR}/CMakeUserPresets.json" llvm/
-
-    echo "Setting up environment ..."
-    cmd_setup "$worktree_root"
-
-    local main_root="$LLVMS/main"
-    for item in marks.md .claude .cursor; do
-        [[ -e "$main_root/$item" ]] && cp -r "$main_root/$item" "$worktree_root/$item"
-    done
+    setup_worktree_environment "$worktree_root"
 
     echo "Created worktree ${worktree_name} at ${worktree_root}"
+}
+
+cmd_setup_review() {
+    check_main_llvm
+
+    local do_build=false
+    local do_test=false
+    local pr_arg=""
+    local worktree_name=""
+
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            --build)
+                do_build=true
+                ;;
+            --test)
+                do_test=true
+                ;;
+            -h|--help|help)
+                echo "Usage: $SCRIPT_NAME setup-review <pr-url-or-number> [review-name] [--build] [--test]"
+                echo ""
+                echo "Creates ~/llvm/[review-name]/llvm-project, checks out the PR, creates"
+                echo "the venv, and configures CMake. --build builds mlir-opt/mlir-translate;"
+                echo "--test runs check-mlir."
+                exit 0
+                ;;
+            --)
+                shift
+                break
+                ;;
+            -*)
+                echo "Unknown setup-review option: $1"
+                exit 1
+                ;;
+            *)
+                if [[ -z "$pr_arg" ]]; then
+                    pr_arg="$1"
+                elif [[ -z "$worktree_name" ]]; then
+                    worktree_name="$1"
+                else
+                    echo "Unexpected setup-review argument: $1"
+                    exit 1
+                fi
+                ;;
+        esac
+        shift
+    done
+
+    if [[ -z "$pr_arg" ]]; then
+        echo "Usage: $SCRIPT_NAME setup-review <pr-url-or-number> [review-name] [--build] [--test]"
+        exit 1
+    fi
+
+    local pr_ref
+    pr_ref=$(normalize_llvm_pr_ref "$pr_arg")
+
+    local pr_fields
+    pr_fields=$(gh pr view "$pr_ref" --repo llvm/llvm-project --json number,author,baseRefName,headRefName,title,url --jq '[.number, .author.login, .baseRefName, .headRefName, .title, .url] | @tsv')
+
+    local pr_number pr_author pr_base_ref pr_head_ref pr_title pr_url
+    IFS=$'\t' read -r pr_number pr_author pr_base_ref pr_head_ref pr_title pr_url <<< "$pr_fields"
+    if [[ -z "$worktree_name" ]]; then
+        worktree_name=$(default_review_name "$pr_author" "$pr_head_ref" "$pr_number")
+    fi
+
+    local worktree_root="$LLVMS/$worktree_name"
+    local worktree_src_root="$worktree_root/$REPO_DIR"
+    if [[ -d "$worktree_root" ]]; then
+        echo "Will not overwrite existing worktree: $worktree_root"
+        exit 1
+    fi
+    if git -C "$MAIN_LLVM" show-ref --quiet --heads "$worktree_name"; then
+        echo "Will not overwrite existing branch: $worktree_name"
+        exit 1
+    fi
+
+    echo "Setting up LLVM review:"
+    echo "  - PR: #${pr_number} ${pr_title}"
+    echo "  - URL: ${pr_url}"
+    echo "  - Base: origin/${pr_base_ref}"
+    echo "  - Worktree: ${worktree_root}"
+    echo "  - Local branch: ${worktree_name}"
+
+    cd "$MAIN_LLVM"
+    git fetch origin "$pr_base_ref"
+    mkdir -p "$worktree_root"
+    git worktree add --detach "$worktree_src_root" "origin/$pr_base_ref"
+
+    cd "$worktree_src_root"
+    gh pr checkout "$pr_number" --repo llvm/llvm-project --branch "$worktree_name"
+    setup_worktree_environment "$worktree_root"
+
+    echo "Configuring build with CMake preset ${LLVM_REVIEW_CMAKE_PRESET:-default} ..."
+    configure_review_build "$worktree_root"
+
+    if $do_build; then
+        echo "Building mlir-opt and mlir-translate ..."
+        build_review_targets "$worktree_root"
+    fi
+
+    if $do_test; then
+        echo "Running check-mlir ..."
+        test_review_build "$worktree_root"
+    fi
+
+    echo "Review worktree ready at ${worktree_src_root}"
+    echo "Suggested peanut-review init:"
+    echo "  peanut-review init --gh-pr llvm/llvm-project#${pr_number} --workspace ${worktree_src_root}"
 }
 
 cmd_list() {
@@ -132,7 +308,7 @@ cmd_remove() {
     check_main_llvm
 
     if [[ $# -ne 1 ]]; then
-        echo "Usage: $0 remove <branch or path>"
+        echo "Usage: $SCRIPT_NAME remove <branch or path>"
         echo ""
         echo "Remove the worktree for the named branch (or if no such branch"
         echo "at the given path), getting rid of the build environment."
@@ -197,6 +373,9 @@ case "$command" in
         ;;
     setup)
         cmd_setup "$@"
+        ;;
+    setup-review)
+        cmd_setup_review "$@"
         ;;
     list)
         cmd_list "$@"
