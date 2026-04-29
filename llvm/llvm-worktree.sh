@@ -71,6 +71,24 @@ copy_main_worktree_state() {
     done
 }
 
+write_peanut_review_config() {
+    local worktree_root="$1"
+    cat > "$worktree_root/.peanut-review.json" <<EOF
+{
+  "reviewRoot": "$HOME/reviews",
+  "workspaceRoot": ".",
+  "repoRelative": "$REPO_DIR",
+  "timeout": 2400,
+  "agents": [
+    {"name": "vera", "model": "openai/gpt-5.5", "persona": "vera.md", "runner": "opencode"},
+    {"name": "irene", "model": "openai/gpt-5.5", "persona": "irene.md", "runner": "opencode"},
+    {"name": "petra", "model": "openai/gpt-5.4-mini", "persona": "petra.md", "runner": "opencode"},
+    {"name": "soren", "model": "openai/gpt-5.4-mini", "persona": "soren.md", "runner": "opencode"}
+  ]
+}
+EOF
+}
+
 setup_worktree_environment() {
     local worktree_root="$1"
     local worktree_src_root="$worktree_root/$REPO_DIR"
@@ -81,6 +99,7 @@ setup_worktree_environment() {
     echo "Setting up environment ..."
     cmd_setup "$worktree_root"
     copy_main_worktree_state "$worktree_root"
+    write_peanut_review_config "$worktree_root"
 }
 
 configure_review_build() {
@@ -295,8 +314,8 @@ cmd_setup_review() {
     fi
 
     echo "Review worktree ready at ${worktree_src_root}"
-    echo "Suggested peanut-review init:"
-    echo "  peanut-review init --gh-pr llvm/llvm-project#${pr_number} --workspace ${worktree_src_root}"
+    echo "Suggested peanut-review start:"
+    echo "  (cd ${worktree_root} && peanut-review start ${pr_number})"
 }
 
 cmd_list() {
