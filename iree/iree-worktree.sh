@@ -86,7 +86,7 @@ write_peanut_review_config() {
   "reviewRoot": "$HOME/reviews",
   "workspaceRoot": ".",
   "repoRelative": "$REPO_DIR",
-  "timeout": 2400,
+  "reviewAgentTimeoutSeconds": 900,
   "agents": [
     {"name": "vera", "model": "openai/gpt-5.5", "persona": "vera.md", "runner": "opencode"},
     {"name": "irene", "model": "openai/gpt-5.5", "persona": "irene.md", "runner": "opencode"},
