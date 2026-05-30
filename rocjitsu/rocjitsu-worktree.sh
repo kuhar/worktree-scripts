@@ -10,6 +10,8 @@ ROCJITSU_DEFAULT_BRANCH="develop"
 MAIN_ROCJITSU_ROOT="$ROCJITSUS/develop"
 MAIN_ROCJITSU="$MAIN_ROCJITSU_ROOT/$REPO_DIR"
 ROCJITSU_SOURCE_REL="$REPO_DIR/emulation/rocjitsu"
+THEROCK_MULTIARCH_INDEX="https://rocm.nightlies.amd.com/whl-multi-arch/"
+THEROCK_ROCM_PACKAGE="rocm[libraries,devel,device-all]"
 
 check_main_rocjitsu() {
     if [[ ! -d $MAIN_ROCJITSU ]]; then
@@ -116,13 +118,31 @@ cmd_setup() {
 
     pushd "$root_dir"
 
+    typeset -F SECONDS
+    local start_time=$SECONDS
+    uv venv --python 3.12 venv
+    source venv/bin/activate
+    uv pip install --upgrade --pre --index-url "$THEROCK_MULTIARCH_INDEX" "$THEROCK_ROCM_PACKAGE"
+    rocm-sdk init
+    local rocm_root rocm_cmake rocm_bin
+    rocm_root=$(rocm-sdk path --root)
+    rocm_cmake=$(rocm-sdk path --cmake)
+    rocm_bin=$(rocm-sdk path --bin)
+    local elapsed=$((SECONDS - start_time))
+    printf "TheRock venv setup and package installation took %.3fs\n" "$elapsed"
+
     local build_dir="$root_dir/build"
     mkdir -p "$build_dir"
     link_cmake_presets "$cmake_root"
 
     echo "export CCACHE_BASEDIR=\"$root_dir\"" > .envrc
     echo "export CCACHE_NOHASHDIR=true" >> .envrc
+    echo "source \"$root_dir/venv/bin/activate\"" >> .envrc
+    echo "export ROCM_PATH=\"$rocm_root\"" >> .envrc
+    echo "export ROCM_HOME=\"$rocm_root\"" >> .envrc
+    echo "export CMAKE_PREFIX_PATH=\"$rocm_cmake\"" >> .envrc
     echo "export RJ_BUILD_DIR=\"$build_dir\"" >> .envrc
+    echo "PATH_add \"$rocm_bin\"" >> .envrc
     echo "PATH_add \"$build_dir/bin\"" >> .envrc
     echo "PATH_add \"$build_dir/tests\"" >> .envrc
 

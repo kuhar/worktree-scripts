@@ -166,7 +166,7 @@ cmake --build --preset compiler
 mkdir -p ~/rocjitsu/develop
 git clone https://github.com/ROCm/rocm-systems.git ~/rocjitsu/develop/rocm-systems
 
-# Set up the out-of-tree build environment.
+# Set up the out-of-tree build environment and install TheRock ROCm wheels.
 wt rocjitsu setup ~/rocjitsu/develop
 
 # Configure and build RocJITsu. The default preset uses ccache and mold,
@@ -176,7 +176,9 @@ wt rocjitsu build ~/rocjitsu/develop
 
 RocJITsu worktrees live under `~/rocjitsu/<name>/rocm-systems`, with the build
 tree at `~/rocjitsu/<name>/build`. The RocJITsu setup does not initialize
-`rocm-systems` submodules; it is scoped to `emulation/rocjitsu`.
+`rocm-systems` submodules; it is scoped to `emulation/rocjitsu`. It creates a
+per-worktree Python venv and installs the newest TheRock multi-arch ROCm SDK
+wheels with `rocm[libraries,devel,device-all]`.
 
 ## Adding a New Project
 
