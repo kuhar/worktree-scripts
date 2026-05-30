@@ -44,6 +44,13 @@ wt llvm <command> [args...]
 wt rocjitsu <command> [args...]
 ```
 
+Project-specific build commands can be run from inside a matching worktree:
+
+```bash
+wt build
+wt rocjitsu build gfx1250
+```
+
 #### Shell-specific commands
 
 These commands are handled by the shell function (not `worktree.sh`) because they need to change your current directory:
@@ -162,10 +169,9 @@ git clone https://github.com/ROCm/rocm-systems.git ~/rocjitsu/develop/rocm-syste
 # Set up the out-of-tree build environment.
 wt rocjitsu setup ~/rocjitsu/develop
 
-# Configure and build RocJITsu. The default preset uses ccache and mold.
-cd ~/rocjitsu/develop/rocm-systems/emulation/rocjitsu
-cmake --preset default
-cmake --build --preset default
+# Configure and build RocJITsu. The default preset uses ccache and mold,
+# with ccache path hashing set up for reuse across RocJITsu worktrees.
+wt rocjitsu build ~/rocjitsu/develop
 ```
 
 RocJITsu worktrees live under `~/rocjitsu/<name>/rocm-systems`, with the build

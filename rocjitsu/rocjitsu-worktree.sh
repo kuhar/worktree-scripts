@@ -32,6 +32,7 @@ usage() {
     echo "  create <branch> [name]  Create a new worktree"
     echo "  remove <branch|path>    Remove an existing worktree"
     echo "  setup <root>            Set up build environment for a worktree"
+    echo "  build [root|name]       Configure and build a worktree"
     echo "  list                    List worktrees with commit details"
     echo "  <other>                 Passed through to 'git worktree <other>'"
     echo ""
@@ -44,6 +45,41 @@ usage() {
 link_cmake_presets() {
     local cmake_root="$1"
     [[ -a "$cmake_root/CMakePresets.json" ]] || ln -s "${SCRIPT_DIR}/CMakePresets.json" "$cmake_root/"
+}
+
+resolve_worktree_root() {
+    local query="${1:-}"
+    local candidate=""
+
+    if [[ -z "$query" ]]; then
+        local cwd="${PWD:A}"
+        if [[ "$cwd" == "$ROCJITSUS" ]]; then
+            echo "Error: run from a RocJITsu worktree, or pass a worktree root/name." >&2
+            return 1
+        elif [[ "$cwd" == "$ROCJITSUS"/* ]]; then
+            local rel="${cwd#$ROCJITSUS/}"
+            candidate="$ROCJITSUS/${rel%%/*}"
+        else
+            echo "Error: could not infer RocJITsu worktree from $cwd; pass a worktree root/name." >&2
+            return 1
+        fi
+    elif [[ -f "$ROCJITSUS/$query/$ROCJITSU_SOURCE_REL/CMakeLists.txt" ]]; then
+        candidate="$ROCJITSUS/$query"
+    else
+        candidate="${query:A}"
+        if [[ -f "$candidate/CMakeLists.txt" && "$candidate" == */"$ROCJITSU_SOURCE_REL" ]]; then
+            candidate="${candidate:h:h:h}"
+        elif [[ -f "$candidate/emulation/rocjitsu/CMakeLists.txt" ]]; then
+            candidate="${candidate:h}"
+        fi
+    fi
+
+    if [[ ! -f "$candidate/$ROCJITSU_SOURCE_REL/CMakeLists.txt" ]]; then
+        echo "Error: expected $candidate/$ROCJITSU_SOURCE_REL to be a RocJITsu checkout." >&2
+        return 1
+    fi
+
+    echo "$candidate"
 }
 
 copy_main_worktree_state() {
@@ -85,6 +121,7 @@ cmd_setup() {
     link_cmake_presets "$cmake_root"
 
     echo "export CCACHE_BASEDIR=\"$root_dir\"" > .envrc
+    echo "export CCACHE_NOHASHDIR=true" >> .envrc
     echo "export RJ_BUILD_DIR=\"$build_dir\"" >> .envrc
     echo "PATH_add \"$build_dir/bin\"" >> .envrc
     echo "PATH_add \"$build_dir/tests\"" >> .envrc
@@ -96,6 +133,23 @@ cmd_setup() {
     echo "Configure with: (cd $cmake_root && cmake --preset default)"
 
     popd
+}
+
+cmd_build() {
+    if [[ $# -gt 1 ]]; then
+        echo "Usage: $SCRIPT_NAME build [root directory|worktree name]"
+        exit 1
+    fi
+
+    local worktree_root
+    worktree_root=$(resolve_worktree_root "${1:-}") || exit 1
+
+    local cmake_root="$worktree_root/$ROCJITSU_SOURCE_REL"
+    link_cmake_presets "$cmake_root"
+
+    cd "$cmake_root"
+    cmake --preset default
+    cmake --build --preset default --target all
 }
 
 cmd_create() {
@@ -218,6 +272,9 @@ case "$command" in
         ;;
     setup)
         cmd_setup "$@"
+        ;;
+    build)
+        cmd_build "$@"
         ;;
     list)
         cmd_list "$@"

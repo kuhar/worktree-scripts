@@ -11,6 +11,10 @@
       "hidden": false,
       "generator": "Ninja",
       "binaryDir": "${sourceDir}/../../../build",
+      "environment": {
+        "CCACHE_BASEDIR": "${sourceDir}/../../..",
+        "CCACHE_NOHASHDIR": "true"
+      },
       "cacheVariables": {
         "CMAKE_BUILD_TYPE": "RelWithDebInfo",
         "CMAKE_CXX_COMPILER": "clang++-23",

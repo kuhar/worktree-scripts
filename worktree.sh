@@ -66,6 +66,7 @@ usage() {
     echo "  create <branch> [name]  Create a new worktree"
     echo "  remove <branch|path>    Remove an existing worktree"
     echo "  setup <root>            Set up build environment for a worktree"
+    echo "  build [args]            Run project-specific build command"
     echo "  setup-review <pr> [name] Prepare a local PR review checkout"
     echo "  list                    List all worktrees"
     echo "  <other>                 Passed through to 'git worktree <other>'"
