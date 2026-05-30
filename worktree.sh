@@ -13,6 +13,7 @@ typeset -A PROJECTS
 PROJECTS=(
     iree "$HOME/iree"
     llvm "$HOME/llvm"
+    rocjitsu "$HOME/rocjitsu"
 )
 
 # =============================================================================

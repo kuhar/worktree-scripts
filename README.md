@@ -1,6 +1,6 @@
 # Worktree Scripts
 
-Scripts for managing git worktrees for IREE and LLVM projects.
+Scripts for managing git worktrees for IREE, LLVM, and RocJITsu projects.
 
 Based on https://github.com/krzysz00/amd-scripts.
 
@@ -11,9 +11,11 @@ Based on https://github.com/krzysz00/amd-scripts.
 - `zsh` — scripts are written in zsh
 - `fzf` — for interactive worktree browsing (`wt br`)
 - `direnv` — for automatic environment activation
-- `parallel` — for parallel submodule initialization
+- `parallel` — for IREE's parallel submodule initialization
 
-The included CMake presets assume `clang-20`, `ninja`, `ccache`, and `mold` to be installed, but you can modify them based on your environment.
+The included CMake presets assume project-specific Clang versions, `ninja`,
+`ccache`, and `mold` to be installed, but you can modify them based on your
+environment.
 
 ## Installation
 
@@ -39,6 +41,7 @@ wt <command> [args...]
 # Or specify project explicitly.
 wt iree <command> [args...]
 wt llvm <command> [args...]
+wt rocjitsu <command> [args...]
 ```
 
 #### Shell-specific commands
@@ -50,11 +53,13 @@ These commands are handled by the shell function (not `worktree.sh`) because the
 wt br
 wt iree br
 wt llvm br
+wt rocjitsu br
 
-# cd to project root (~/iree or ~/llvm).
+# cd to project root (~/iree, ~/llvm, or ~/rocjitsu).
 wt root
 wt iree root
 wt llvm root
+wt rocjitsu root
 ```
 
 Sample `wt br` output (uses fzf for interactive selection):
@@ -82,7 +87,7 @@ wt list
 # Create a new worktree.
 wt create <branch> [name]
 
-# Remove a worktree (cleans up submodules, build dir, venv).
+# Remove a worktree and its local setup artifacts.
 wt remove <branch|path>
 
 # Set up build environment for an existing worktree.
@@ -147,6 +152,26 @@ cmake --build --preset default
 cmake --build --preset compiler
 ```
 
+### Setting up RocJITsu from scratch
+
+```bash
+# Clone main rocm-systems repository for RocJITsu work.
+mkdir -p ~/rocjitsu/develop
+git clone https://github.com/ROCm/rocm-systems.git ~/rocjitsu/develop/rocm-systems
+
+# Set up the out-of-tree build environment.
+wt rocjitsu setup ~/rocjitsu/develop
+
+# Configure and build RocJITsu. The default preset uses ccache and mold.
+cd ~/rocjitsu/develop/rocm-systems/emulation/rocjitsu
+cmake --preset default
+cmake --build --preset default
+```
+
+RocJITsu worktrees live under `~/rocjitsu/<name>/rocm-systems`, with the build
+tree at `~/rocjitsu/<name>/build`. The RocJITsu setup does not initialize
+`rocm-systems` submodules; it is scoped to `emulation/rocjitsu`.
+
 ## Adding a New Project
 
 Edit `worktree.sh` and add your project to the `PROJECTS` array:
@@ -155,6 +180,7 @@ Edit `worktree.sh` and add your project to the `PROJECTS` array:
 PROJECTS=(
     iree "$HOME/iree"
     llvm "$HOME/llvm"
+    rocjitsu "$HOME/rocjitsu"
     myproject "$HOME/myproject"  # Add your project here.
 )
 ```

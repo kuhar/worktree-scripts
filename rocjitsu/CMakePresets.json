@@ -1,0 +1,102 @@
+{
+  "version": 6,
+  "cmakeMinimumRequired": {
+    "major": 3,
+    "minor": 25,
+    "patch": 0
+  },
+  "configurePresets": [
+    {
+      "name": "default",
+      "hidden": false,
+      "generator": "Ninja",
+      "binaryDir": "${sourceDir}/../../../build",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "RelWithDebInfo",
+        "CMAKE_CXX_COMPILER": "clang++-23",
+        "CMAKE_C_COMPILER": "clang-23",
+        "CMAKE_CXX_COMPILER_LAUNCHER": "ccache",
+        "CMAKE_C_COMPILER_LAUNCHER": "ccache",
+        "CMAKE_EXPORT_COMPILE_COMMANDS": "ON",
+        "CMAKE_EXE_LINKER_FLAGS": "-fuse-ld=mold",
+        "CMAKE_SHARED_LINKER_FLAGS": "-fuse-ld=mold",
+        "CMAKE_MODULE_LINKER_FLAGS": "-fuse-ld=mold",
+        "FETCHCONTENT_BASE_DIR": "${sourceDir}/../../../build/_deps"
+      }
+    },
+    {
+      "name": "relass",
+      "inherits": "default",
+      "displayName": "Release with Debug Info (Jakub)"
+    },
+    {
+      "name": "debug",
+      "inherits": "default",
+      "displayName": "Debug (Jakub)",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Debug"
+      }
+    },
+    {
+      "name": "asan",
+      "inherits": "debug",
+      "displayName": "AddressSanitizer (Jakub)",
+      "cacheVariables": {
+        "RJ_SANITIZER": "asan"
+      }
+    },
+    {
+      "name": "ubsan",
+      "inherits": "debug",
+      "displayName": "UndefinedBehaviorSanitizer (Jakub)",
+      "cacheVariables": {
+        "RJ_SANITIZER": "ubsan"
+      }
+    }
+  ],
+  "buildPresets": [
+    {
+      "name": "default",
+      "displayName": "Build RocJITsu",
+      "configurePreset": "default"
+    },
+    {
+      "name": "tests",
+      "displayName": "Build RocJITsu tests",
+      "inherits": "default",
+      "targets": ["rocjitsu_tests"]
+    }
+  ],
+  "testPresets": [
+    {
+      "name": "default",
+      "displayName": "Run RocJITsu tests",
+      "configurePreset": "default",
+      "output": {
+        "outputOnFailure": true
+      },
+      "execution": {
+        "jobs": 16
+      }
+    }
+  ],
+  "workflowPresets": [
+    {
+      "name": "build",
+      "displayName": "Configure and build RocJITsu",
+      "steps": [
+        { "type": "configure", "name": "default" },
+        { "type": "build", "name": "default" }
+      ]
+    },
+    {
+      "name": "test",
+      "displayName": "Configure, build, and test RocJITsu",
+      "steps": [
+        { "type": "configure", "name": "default" },
+        { "type": "build", "name": "default" },
+        { "type": "test", "name": "default" }
+      ]
+    }
+  ]
+}

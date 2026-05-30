@@ -74,27 +74,9 @@ update_top_level_submodules() {
 copy_main_worktree_state() {
     local worktree_root="$1"
     local main_root="$IREES/main"
-    for item in marks.md .claude .cursor; do
+    for item in marks.md .claude .cursor .peanut-review.json; do
         [[ -e "$main_root/$item" ]] && cp -r "$main_root/$item" "$worktree_root/$item"
     done
-}
-
-write_peanut_review_config() {
-    local worktree_root="$1"
-    cat > "$worktree_root/.peanut-review.json" <<EOF
-{
-  "reviewRoot": "$HOME/reviews",
-  "workspaceRoot": ".",
-  "repoRelative": "$REPO_DIR",
-  "reviewAgentTimeoutSeconds": 900,
-  "agents": [
-    {"name": "vera", "model": "openai/gpt-5.5", "persona": "vera.md", "runner": "opencode"},
-    {"name": "irene", "model": "openai/gpt-5.5", "persona": "irene.md", "runner": "opencode"},
-    {"name": "petra", "model": "openai/gpt-5.4-mini", "persona": "petra.md", "runner": "opencode"},
-    {"name": "soren", "model": "openai/gpt-5.4-mini", "persona": "soren.md", "runner": "opencode"}
-  ]
-}
-EOF
 }
 
 setup_worktree_environment() {
@@ -108,7 +90,6 @@ setup_worktree_environment() {
     echo "Creating virtual environment ..."
     cmd_setup "$worktree_root"
     copy_main_worktree_state "$worktree_root"
-    write_peanut_review_config "$worktree_root"
 }
 
 configure_review_build() {
@@ -373,7 +354,8 @@ cmd_remove() {
     rm -rf -- "${worktree_env}/build" "${worktree_env}/.direnv" "${worktree_env}/.envrc" \
               "${worktree_env}/.cache" "${worktree_env}/venv" \
               "${worktree_env}/compile_commands.json" "${worktree_env}/tablegen_compile_commands.yml" \
-              "${worktree_env}/marks.md" "${worktree_env}/.claude" "${worktree_env}/.cursor" || true
+              "${worktree_env}/marks.md" "${worktree_env}/.claude" "${worktree_env}/.cursor" \
+              "${worktree_env}/.peanut-review.json" || true
     rmdir "${worktree_env}" || (echo "There's still something in the worktree" && ls -la "${worktree_env}")
     echo "Removed worktree $branch_or_path at $worktree_env"
 }
