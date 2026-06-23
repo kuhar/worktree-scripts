@@ -166,7 +166,7 @@ cmake --build --preset compiler
 mkdir -p ~/rocjitsu/develop
 git clone https://github.com/ROCm/rocm-systems.git ~/rocjitsu/develop/rocm-systems
 
-# Set up the out-of-tree build environment and install TheRock ROCm wheels.
+# Set up the out-of-tree build environment, TheRock ROCm wheels, and Python tools.
 wt rocjitsu setup ~/rocjitsu/develop
 
 # Configure and build RocJITsu. The default preset uses ccache and mold,
@@ -178,7 +178,13 @@ RocJITsu worktrees live under `~/rocjitsu/<name>/rocm-systems`, with the build
 tree at `~/rocjitsu/<name>/build`. The RocJITsu setup does not initialize
 `rocm-systems` submodules; it is scoped to `emulation/rocjitsu`. It creates a
 per-worktree Python venv and installs the newest TheRock multi-arch ROCm SDK
-wheels with `rocm[libraries,devel,device-all]`.
+wheels with `rocm[libraries,devel,device-all]`, plus editable `amdisa` and
+`pytest`. It also initializes Beads in the workspace root when `br` is
+available. Setup writes `.envrc` with `ROCM_PATH`, `ROCM_HOME`,
+`CMAKE_PREFIX_PATH`, the TheRock SDK `bin` directory on `PATH`, and
+`LD_LIBRARY_PATH` for TheRock runtime libraries. `wt rocjitsu build` also passes
+those paths back into CMake so stale caches do not fall back to `/opt/rocm` or
+`/usr/bin/hipcc`.
 
 ## Adding a New Project
 

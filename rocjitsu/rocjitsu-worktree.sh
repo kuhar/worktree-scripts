@@ -92,6 +92,50 @@ copy_main_worktree_state() {
     done
 }
 
+repair_therock_amdllvm_shim() {
+    local rocm_root="$1"
+    local shim="$rocm_root/bin/amdllvm"
+    local target="../lib/llvm/bin/amdllvm"
+
+    if [[ -x "$rocm_root/lib/llvm/bin/amdllvm" && ( ! -L "$shim" || "$(readlink "$shim")" != "$target" ) ]]; then
+        rm -f "$shim"
+        ln -s "$target" "$shim"
+    fi
+}
+
+prepend_colon_path() {
+    local var_name="$1"
+    local entry="$2"
+    local current="${(P)var_name:-}"
+
+    if [[ ":$current:" != *":$entry:"* ]]; then
+        export "$var_name=$entry${current:+:$current}"
+    fi
+}
+
+activate_therock_environment() {
+    local worktree_root="$1"
+
+    source "$worktree_root/venv/bin/activate"
+    export ROCM_PATH="$(rocm-sdk path --root)"
+    repair_therock_amdllvm_shim "$ROCM_PATH"
+    export ROCM_HOME="$ROCM_PATH"
+    export CMAKE_PREFIX_PATH="$(rocm-sdk path --cmake)"
+    export CCACHE_BASEDIR="$worktree_root"
+    export CCACHE_NOHASHDIR=true
+
+    local rocm_bin rocm_lib rocm_llvm_lib rocm_sysdeps_lib
+    rocm_bin="$(rocm-sdk path --bin)"
+    rocm_lib="$ROCM_PATH/lib"
+    rocm_llvm_lib="$ROCM_PATH/lib/llvm/lib"
+    rocm_sysdeps_lib="$ROCM_PATH/lib/rocm_sysdeps/lib"
+
+    prepend_colon_path PATH "$rocm_bin"
+    prepend_colon_path LD_LIBRARY_PATH "$rocm_sysdeps_lib"
+    prepend_colon_path LD_LIBRARY_PATH "$rocm_llvm_lib"
+    prepend_colon_path LD_LIBRARY_PATH "$rocm_lib"
+}
+
 setup_worktree_environment() {
     local worktree_root="$1"
     local cmake_root="$worktree_root/$ROCJITSU_SOURCE_REL"
@@ -123,9 +167,11 @@ cmd_setup() {
     uv venv --python 3.12 venv
     source venv/bin/activate
     uv pip install --upgrade --pre --index-url "$THEROCK_MULTIARCH_INDEX" "$THEROCK_ROCM_PACKAGE"
+    uv pip install -e "$cmake_root/lib/python" pytest
     rocm-sdk init
     local rocm_root rocm_cmake rocm_bin
     rocm_root=$(rocm-sdk path --root)
+    repair_therock_amdllvm_shim "$rocm_root"
     rocm_cmake=$(rocm-sdk path --cmake)
     rocm_bin=$(rocm-sdk path --bin)
     local elapsed=$((SECONDS - start_time))
@@ -135,12 +181,19 @@ cmd_setup() {
     mkdir -p "$build_dir"
     link_cmake_presets "$cmake_root"
 
+    if command -v br >/dev/null 2>&1; then
+        [[ -d "$root_dir/.beads" ]] || br init
+    else
+        echo "Warning: br not found; skipping beads workspace initialization."
+    fi
+
     echo "export CCACHE_BASEDIR=\"$root_dir\"" > .envrc
     echo "export CCACHE_NOHASHDIR=true" >> .envrc
     echo "source \"$root_dir/venv/bin/activate\"" >> .envrc
     echo "export ROCM_PATH=\"$rocm_root\"" >> .envrc
     echo "export ROCM_HOME=\"$rocm_root\"" >> .envrc
     echo "export CMAKE_PREFIX_PATH=\"$rocm_cmake\"" >> .envrc
+    echo "export LD_LIBRARY_PATH=\"$rocm_root/lib:$rocm_root/lib/llvm/lib:$rocm_root/lib/rocm_sysdeps/lib\${LD_LIBRARY_PATH:+:\$LD_LIBRARY_PATH}\"" >> .envrc
     echo "export RJ_BUILD_DIR=\"$build_dir\"" >> .envrc
     echo "PATH_add \"$rocm_bin\"" >> .envrc
     echo "PATH_add \"$build_dir/bin\"" >> .envrc
@@ -167,8 +220,18 @@ cmd_build() {
     local cmake_root="$worktree_root/$ROCJITSU_SOURCE_REL"
     link_cmake_presets "$cmake_root"
 
+    activate_therock_environment "$worktree_root"
+
     cd "$cmake_root"
-    cmake --preset default
+    cmake --preset default \
+        -DROCM_PATH:PATH="$ROCM_PATH" \
+        -DCMAKE_PREFIX_PATH:PATH="$CMAKE_PREFIX_PATH" \
+        -DCMAKE_INSTALL_PREFIX:PATH="$ROCM_PATH" \
+        -DHIPCC_EXECUTABLE:FILEPATH="$ROCM_PATH/bin/hipcc" \
+        -DHSA_RUNTIME64:FILEPATH="$ROCM_PATH/lib/libhsa-runtime64.so" \
+        -DROCMINFO_EXECUTABLE:FILEPATH="$ROCM_PATH/bin/rocminfo" \
+        -DROCM_AGENT_ENUM:FILEPATH="$ROCM_PATH/bin/rocm_agent_enumerator" \
+        -DAMDCXX:FILEPATH="$ROCM_PATH/bin/amdclang++"
     cmake --build --preset default --target all
 }
 
