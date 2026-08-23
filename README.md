@@ -174,6 +174,22 @@ wt rocjitsu setup ~/rocjitsu/develop
 wt rocjitsu build ~/rocjitsu/develop
 ```
 
+### Queue-managed RocJITsu wrappers
+
+The active review queue calls the RocJITsu-specific machine interface directly:
+
+```text
+rocjitsu-worktree.sh queue-setup <wrapper-root> <commit>
+rocjitsu-worktree.sh queue-cleanup --check <wrapper-root>
+rocjitsu-worktree.sh queue-cleanup <wrapper-root>
+```
+
+These commands require the queue ownership environment and are deliberately
+separate from the human `setup-review` commands implemented by other project
+wrappers. Setup creates a validated queue-owned `CMakeUserPresets.json` symlink;
+cleanup excludes only that exact target from its clean-source check and removes
+it before removing the Git worktree.
+
 RocJITsu worktrees live under `~/rocjitsu/<name>/rocm-systems`, with the build
 tree at `~/rocjitsu/<name>/build`. The RocJITsu setup does not initialize
 `rocm-systems` submodules; it is scoped to `emulation/rocjitsu`. It creates a

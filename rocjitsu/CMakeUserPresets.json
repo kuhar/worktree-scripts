@@ -1,0 +1,76 @@
+{
+  "version": 6,
+  "configurePresets": [
+    {
+      "name": "gcc-13",
+      "inherits": "default",
+      "displayName": "GCC 13 RelWithDebInfo assertions (local review)",
+      "binaryDir": "${sourceDir}/../../../build-gcc-13",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "RelWithDebInfo",
+        "CMAKE_CXX_COMPILER": "g++-13",
+        "CMAKE_C_COMPILER": "gcc-13",
+        "CMAKE_CXX_FLAGS_RELWITHDEBINFO": "-O2 -g",
+        "CMAKE_C_FLAGS_RELWITHDEBINFO": "-O2 -g",
+        "CMAKE_EXE_LINKER_FLAGS": "",
+        "CMAKE_SHARED_LINKER_FLAGS": "",
+        "CMAKE_MODULE_LINKER_FLAGS": "",
+        "FETCHCONTENT_BASE_DIR": "${sourceDir}/../../../build-gcc-13/_deps"
+      }
+    },
+    {
+      "name": "clang-23-asan-ubsan",
+      "inherits": "default",
+      "displayName": "Clang 23 AddressSanitizer + UndefinedBehaviorSanitizer RelWithDebInfo assertions (local review)",
+      "binaryDir": "${sourceDir}/../../../build-clang-23-asan-ubsan",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "RelWithDebInfo",
+        "RJ_ENABLE_ASAN": "ON",
+        "RJ_ENABLE_UBSAN": "ON",
+        "CMAKE_CXX_FLAGS": "-fno-sanitize-recover=undefined",
+        "CMAKE_C_FLAGS": "-fno-sanitize-recover=undefined",
+        "CMAKE_CXX_FLAGS_RELWITHDEBINFO": "-O2 -g",
+        "CMAKE_C_FLAGS_RELWITHDEBINFO": "-O2 -g",
+        "CMAKE_EXE_LINKER_FLAGS": "-fuse-ld=mold -shared-libsan",
+        "CMAKE_SHARED_LINKER_FLAGS": "-fuse-ld=mold -shared-libsan",
+        "CMAKE_MODULE_LINKER_FLAGS": "-fuse-ld=mold -shared-libsan",
+        "HIPCC_EXECUTABLE": "${sourceDir}/../../../tools/hipcc-asan-ubsan",
+        "FETCHCONTENT_BASE_DIR": "${sourceDir}/../../../build-clang-23-asan-ubsan/_deps"
+      }
+    },
+    {
+      "name": "clang-23-tsan",
+      "inherits": "default",
+      "displayName": "Clang 23 ThreadSanitizer RelWithDebInfo assertions (local review)",
+      "binaryDir": "${sourceDir}/../../../build-clang-23-tsan",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "RelWithDebInfo",
+        "CMAKE_CXX_FLAGS_RELWITHDEBINFO": "-O2 -g",
+        "CMAKE_C_FLAGS_RELWITHDEBINFO": "-O2 -g",
+        "CMAKE_EXE_LINKER_FLAGS": "-fuse-ld=mold -shared-libsan",
+        "CMAKE_SHARED_LINKER_FLAGS": "-fuse-ld=mold -shared-libsan",
+        "CMAKE_MODULE_LINKER_FLAGS": "-fuse-ld=mold -shared-libsan",
+        "RJ_ENABLE_TSAN": "ON",
+        "HIPCC_EXECUTABLE": "${sourceDir}/../../../tools/hipcc-tsan",
+        "FETCHCONTENT_BASE_DIR": "${sourceDir}/../../../build-clang-23-tsan/_deps"
+      }
+    }
+  ],
+  "buildPresets": [
+    {
+      "name": "gcc-13",
+      "displayName": "Build RocJITsu with GCC 13",
+      "configurePreset": "gcc-13"
+    },
+    {
+      "name": "clang-23-asan-ubsan",
+      "displayName": "Build RocJITsu with Clang 23 ASan+UBSan",
+      "configurePreset": "clang-23-asan-ubsan"
+    },
+    {
+      "name": "clang-23-tsan",
+      "displayName": "Build RocJITsu with Clang 23 TSan",
+      "configurePreset": "clang-23-tsan"
+    }
+  ]
+}

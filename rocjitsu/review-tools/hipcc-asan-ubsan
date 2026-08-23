@@ -1,0 +1,16 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+real_hipcc="${ROCJITSU_REAL_HIPCC:-}"
+if [[ -z "$real_hipcc" && -n "${ROCM_PATH:-}" && -x "$ROCM_PATH/bin/hipcc" ]]; then
+    real_hipcc="$ROCM_PATH/bin/hipcc"
+fi
+if [[ -z "$real_hipcc" ]]; then
+    real_hipcc="$(command -v hipcc)"
+fi
+
+exec "$real_hipcc" \
+    -Xarch_host -fsanitize=address,undefined \
+    -Xarch_host -fno-omit-frame-pointer \
+    -Xarch_host -fno-sanitize-recover=undefined \
+    "$@"
