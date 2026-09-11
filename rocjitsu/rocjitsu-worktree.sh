@@ -11,6 +11,7 @@ MAIN_ROCJITSU_ROOT="${ROCJITSU_MAIN_ROOT:-$ROCJITSUS/develop}"
 MAIN_ROCJITSU="${ROCJITSU_MAIN_WORKSPACE:-$MAIN_ROCJITSU_ROOT/$REPO_DIR}"
 ROCJITSU_SOURCE_REL="$REPO_DIR/emulation/rocjitsu"
 REVIEW_SOURCE_ASSET_REL="emulation/rocjitsu/CMakeUserPresets.json"
+REVIEW_LAUNCHER="${ROCJITSU_REVIEW_LAUNCHER:-${SCRIPT_DIR}/../../agent-workspace/rocjitsu/review-pr.sh}"
 THEROCK_MULTIARCH_INDEX="https://rocm.nightlies.amd.com/whl-multi-arch/"
 THEROCK_ROCM_PACKAGE="rocm[libraries,devel,device-all]"
 
@@ -95,7 +96,12 @@ review_source_status() {
 }
 
 is_managed_review_entry() {
-    case "$1" in
+    local entry="$1"
+    case "${entry:t}" in
+        review-pr.sh)
+            [[ -L "$entry" && -f "$REVIEW_LAUNCHER" \
+                && "$(realpath -- "$entry" 2>/dev/null || true)" == "${REVIEW_LAUNCHER:A}" ]]
+            return $? ;;
         .review-queue.json|.review-queue.lock|.beads|.claude|.cursor|.direnv|.envrc|.cache|\
         .peanut-review.json|build|build-*|compile_commands.json|marks.md|\
         rocm-systems|tools|venv) return 0 ;;
@@ -196,9 +202,10 @@ setup_worktree_environment() {
 
     link_cmake_presets "$cmake_root"
 
-    echo "Setting up environment ..."
+    echo "::group::Environment setup"
     cmd_setup "$worktree_root"
     copy_main_worktree_state "$worktree_root"
+    echo "::endgroup::"
 }
 
 cmd_setup() {
@@ -218,10 +225,17 @@ cmd_setup() {
 
     typeset -F SECONDS
     local start_time=$SECONDS
+    echo "::group::Create Python environment"
     uv venv --python 3.12 venv
     source venv/bin/activate
+    echo "::endgroup::"
+    echo "::group::Install TheRock SDK"
     uv pip install --upgrade --pre --index-url "$THEROCK_MULTIARCH_INDEX" "$THEROCK_ROCM_PACKAGE"
+    echo "::endgroup::"
+    echo "::group::Install Python dependencies"
     uv pip install -e "$cmake_root/lib/python" pytest
+    echo "::endgroup::"
+    echo "::group::Initialize SDK"
     rocm-sdk init
     local rocm_root rocm_cmake rocm_bin
     rocm_root=$(rocm-sdk path --root)
@@ -231,6 +245,8 @@ cmd_setup() {
     local elapsed=$((SECONDS - start_time))
     printf "TheRock venv setup and package installation took %.3fs\n" "$elapsed"
 
+    echo "::endgroup::"
+    echo "::group::Configure workspace"
     local build_dir="$root_dir/build"
     mkdir -p "$build_dir"
     link_cmake_presets "$cmake_root"
@@ -262,6 +278,7 @@ cmd_setup() {
     echo "Configure with: (cd $cmake_root && cmake --preset default)"
 
     popd
+    echo "::endgroup::"
 }
 
 cmd_queue_setup() {
@@ -306,6 +323,7 @@ cmd_queue_setup() {
         exit 1
     fi
 
+    echo "::group::Checkout"
     if [[ ! -e "$worktree_src_root" ]]; then
         local entry name
         for entry in "$worktree_root"/*(DN); do
@@ -341,6 +359,7 @@ cmd_queue_setup() {
         copy_main_worktree_state "$worktree_root"
     fi
 
+    echo "::endgroup::"
     if [[ ! -x "$worktree_root/venv/bin/rocm-sdk" \
             || ! -d "$worktree_root/build" || ! -f "$worktree_root/.envrc" ]]; then
         ROCJITSU_SKIP_BEADS=1 setup_worktree_environment "$worktree_root"
@@ -405,7 +424,7 @@ cleanup_review_preflight() {
     local entry name
     for entry in "$worktree_root"/*(DN); do
         name="${entry:t}"
-        if ! is_managed_review_entry "$name"; then
+        if ! is_managed_review_entry "$entry"; then
             CLEANUP_REASON="unknown top-level entry: $name"
             return 1
         fi
@@ -471,7 +490,9 @@ cmd_queue_cleanup() {
     if [[ -d "$worktree_src_root" ]]; then
         validate_review_source_assets "$worktree_src_root" || return 1
         rm -f -- "$worktree_src_root/$REVIEW_SOURCE_ASSET_REL"
-        git -C "$MAIN_ROCJITSU" worktree remove "$worktree_src_root"
+        # Preflight rejects source and submodule changes. Git still requires
+        # --force to remove a clean worktree containing initialized submodules.
+        git -C "$MAIN_ROCJITSU" worktree remove --force "$worktree_src_root"
     fi
     local entry name
     for entry in "$worktree_root"/*(DN); do
@@ -479,7 +500,7 @@ cmd_queue_cleanup() {
         if [[ "$name" == "$REPO_DIR" ]]; then
             echo "Cleanup stopped: managed source survived git worktree remove" >&2
             return 1
-        elif is_managed_review_entry "$name"; then
+        elif is_managed_review_entry "$entry"; then
             rm -rf -- "$entry"
         else
             echo "Cleanup stopped after worktree removal: unexpected entry $entry" >&2
