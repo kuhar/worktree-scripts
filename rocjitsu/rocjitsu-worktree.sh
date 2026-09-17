@@ -102,7 +102,7 @@ is_managed_review_entry() {
             [[ -L "$entry" && -f "$REVIEW_LAUNCHER" \
                 && "$(realpath -- "$entry" 2>/dev/null || true)" == "${REVIEW_LAUNCHER:A}" ]]
             return $? ;;
-        .review-queue.json|.review-queue.lock|.beads|.claude|.cursor|.direnv|.envrc|.cache|\
+        .review-queue.json|.review-queue.lock|.beads|.claude|.cursor|.direnv|.envrc|.cache|.ruff_cache|\
         .peanut-review.json|build|build-*|compile_commands.json|marks.md|\
         rocm-systems|tools|venv) return 0 ;;
         *) return 1 ;;
