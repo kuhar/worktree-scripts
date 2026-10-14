@@ -5,7 +5,7 @@ set -euo pipefail
 SCRIPT_DIR="${0:A:h}"
 SCRIPT_NAME="${0:A}"
 REPO_DIR="iree"
-IREES="$HOME/iree"
+IREES="${IREES:-$HOME/iree}"
 MAIN_IREE="$IREES/main/$REPO_DIR"
 
 check_main_iree() {

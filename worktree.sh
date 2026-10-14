@@ -11,9 +11,9 @@ SCRIPT_NAME="${0:A}"
 # =============================================================================
 typeset -A PROJECTS
 PROJECTS=(
-    iree "$HOME/iree"
-    llvm "$HOME/llvm"
-    rocjitsu "$HOME/rocjitsu"
+    iree "${IREES:-$HOME/iree}"
+    llvm "${LLVMS:-$HOME/llvm}"
+    rocjitsu "${ROCJITSUS:-$HOME/rocjitsu}"
 )
 
 # =============================================================================

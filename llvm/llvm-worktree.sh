@@ -5,7 +5,7 @@ set -euo pipefail
 SCRIPT_DIR="${0:A:h}"
 SCRIPT_NAME="${0:A}"
 REPO_DIR="llvm-project"
-LLVMS="$HOME/llvm"
+LLVMS="${LLVMS:-$HOME/llvm}"
 MAIN_LLVM="$LLVMS/main/$REPO_DIR"
 
 check_main_llvm() {

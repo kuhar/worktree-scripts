@@ -102,7 +102,7 @@ is_managed_review_entry() {
             [[ -L "$entry" && -f "$REVIEW_LAUNCHER" \
                 && "$(realpath -- "$entry" 2>/dev/null || true)" == "${REVIEW_LAUNCHER:A}" ]]
             return $? ;;
-        .review-queue.json|.review-queue.lock|.beads|.claude|.cursor|.direnv|.envrc|.cache|.ruff_cache|\
+        .review-queue.json|.review-queue.lock|.beads|.claude|.cursor|.direnv|.envrc|.cache|.ruff_cache|.pytest_cache|\
         .peanut-review.json|build|build-*|compile_commands.json|marks.md|\
         rocm-systems|tools|venv) return 0 ;;
         *) return 1 ;;
@@ -150,6 +150,7 @@ copy_main_worktree_state() {
     for item in marks.md .claude .cursor .peanut-review.json; do
         [[ -e "$main_root/$item" ]] && cp -r "$main_root/$item" "$worktree_root/"
     done
+    return 0
 }
 
 repair_therock_amdllvm_shim() {
